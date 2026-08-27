@@ -117,24 +117,24 @@
         activeBlock: "Foundation",
         splits: {
           "Foundation": { 
-            "Push": ["DB Bench Press", "Tricep Extension"], 
-            "Pull": ["Lat Pulldown", "Bicep Curls"],
-            "Legs": ["Goblet Squat", "Calf Raises"],
             "Upper": ["Incline DB Press", "Cable Row"],
-            "Lower": ["Romanian Deadlift", "Leg Extension"]
+            "Lower": ["Romanian Deadlift", "Leg Extension"],
+            "Pull": ["Lat Pulldown", "Bicep Curls"],
+            "Push": ["DB Bench Press", "Tricep Extension"], 
+            "Legs": ["Goblet Squat", "Calf Raises"]
           },
           "Ramping": { 
-            "Push": ["Barbell Bench Press", "Skullcrushers"], 
-            "Pull": ["Weighted Pull-ups", "Barbell Curls"],
-            "Legs": ["Barbell Squat", "Leg Press"],
             "Upper": ["Barbell Row", "Military Press"],
-            "Lower": ["Deadlift", "Hamstring Curl"]
+            "Lower": ["Deadlift", "Hamstring Curl"],
+            "Pull": ["Weighted Pull-ups", "Barbell Curls"],
+            "Push": ["Barbell Bench Press", "Skullcrushers"], 
+            "Legs": ["Barbell Squat", "Leg Press"]
           },
           "No Block": { 
             "Full Body": ["Squat", "Bench Press", "Barbell Row"] 
           }
         },
-        activeSplit: "Push",
+        activeSplit: "Upper",
         history: []
       };
     }
@@ -259,7 +259,7 @@
       });
 
       if (!u.splits[u.activeBlock]) {
-        u.splits[u.activeBlock] = { "Push": ["Bench Press"] };
+        u.splits[u.activeBlock] = { "Upper": ["Bench Press"] };
       }
 
       const splitContainer = document.getElementById('split-chips');
