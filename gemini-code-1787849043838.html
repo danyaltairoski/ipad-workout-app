@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Multi-User Workout Tracker</title>
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --accent: #3b82f6; --text: #f8fafc; --muted: #94a3b8; --danger: #ef4444; --success: #10b981; }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; }
+    h1, h2, h3, h4 { margin: 5px 0; }
+    
+    /* Profile Screen */
+    #profile-screen { text-align: center; padding-top: 40px; }
+    .avatar-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; margin-top: 30px; }
+    .avatar-card { background: var(--card); padding: 20px; border-radius: 16px; width: 110px; cursor: pointer; text-align: center; border: 2px solid transparent; }
+    .avatar-card:active { border-color: var(--accent); }
+    .avatar-circle { width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: bold; margin: 0 auto 10px auto; color: white; }
+    
+    /* App Tabs */
+    .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 10px; }
+    .tab-nav { display: flex; gap: 10px; }
+    .tab-nav button { background: none; border: none; color: var(--muted); font-size: 16px; font-weight: bold; padding: 6px 12px; border-radius: 6px; }
+    .tab-nav button.active { background: var(--card); color: var(--accent); }
+
+    /* Controls & Cards */
+    .control-panel { background: var(--card); padding: 12px; border-radius: 12px; margin-bottom: 15px; }
+    .chip-container { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 5px; margin-bottom: 10px; }
+    .chip { background: #0f172a; color: var(--muted); border: 1px solid #334155; padding: 8px 14px; border-radius: 20px; font-weight: bold; flex-shrink: 0; }
+    .chip.active { background: var(--accent); color: white; border-color: var(--accent); }
+    
+    .card { background: var(--card); border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); }
+    .ex-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+    .set-row { display: grid; grid-template-columns: 45px 1fr 1fr 50px 35px; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .set-header { font-size: 11px; color: var(--muted); text-transform: uppercase; text-align: center; }
+    
+    input, select { background: #0f172a; border: 1px solid #334155; color: white; padding: 8px; border-radius: 6px; font-size: 16px; text-align: center; width: 100%; box-sizing: border-box; }
+    .type-select { font-weight: bold; padding: 8px 2px; }
+    
+    .btn { background: var(--accent); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 10px; }
+    .btn-secondary { background: #334155; }
+    .btn-danger { background: var(--danger); }
+    .btn-check { background: var(--success); padding: 8px; }
+    .btn-check.completed { background: #059669; opacity: 0.6; }
+    
+    .icon-btn { background: none; border: none; color: var(--muted); font-size: 16px; padding: 4px 8px; }
+    .prev-info { font-size: 11px; color: #38bdf8; margin-bottom: 8px; font-weight: bold; }
+    #timer { position: fixed; bottom: 15px; right: 15px; background: #0284c7; color: white; padding: 12px 20px; border-radius: 30px; font-weight: bold; font-size: 18px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: none; }
+    
+    /* History List */
+    .history-card { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 12px; }
+    .history-meta { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+
+  <!-- PROFILE SELECTOR SCREEN -->
+  <div id="profile-screen">
+    <h1>Who's Lifting?</h1>
+    <div class="avatar-grid" id="avatar-list"></div>
+    <button class="btn btn-secondary" style="max-width:200px; margin-top:30px;" onclick="createProfile()">+ Add Profile</button>
+  </div>
+
+  <!-- MAIN APP SCREEN -->
+  <div id="app-screen" style="display:none;">
+    <div class="top-bar">
+      <div class="tab-nav">
+        <button id="tab-workout" class="active" onclick="switchTab('workout')">Workout</button>
+        <button id="tab-history" onclick="switchTab('history')">History</button>
+      </div>
+      <button class="icon-btn" onclick="showProfiles()">👤 Switch User</button>
+    </div>
+
+    <!-- WORKOUT TAB -->
+    <div id="view-workout">
+      <div class="control-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+          <label style="font-size: 11px; color: var(--muted); text-transform: uppercase;">Block</label>
+          <div>
+            <button class="icon-btn" style="font-size:12px; color:var(--accent);" onclick="setRestTimerSetting()">⏱️ Rest (<span id="rest-setting-display">90s</span>)</button>
+            <button class="icon-btn" style="font-size:12px; color:var(--accent);" onclick="manageBlocks()">⚙️ Edit Blocks</button>
+          </div>
+        </div>
+        <div class="chip-container" id="block-chips"></div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+          <label style="font-size: 11px; color: var(--muted); text-transform: uppercase;">Split Routine</label>
+          <button class="icon-btn" style="font-size:12px; color:var(--accent);" onclick="promptAddSplit()">+ Add Split</button>
+        </div>
+        <div class="chip-container" id="split-chips"></div>
+      </div>
+
+      <div id="active-workout"></div>
+
+      <button class="btn btn-secondary" style="margin-bottom: 10px;" onclick="promptAddExercise()">+ Add Exercise</button>
+      <button class="btn" style="background: var(--success); font-size: 18px; padding: 15px;" onclick="finishWorkout()">Finish & Save Workout</button>
+    </div>
+
+    <!-- HISTORY TAB -->
+    <div id="view-history" style="display:none;">
+      <h2>Workout History</h2>
+      <div id="history-container"></div>
+    </div>
+  </div>
+
+  <div id="timer" onclick="stopTimer()">Rest: <span id="timer-time">01:30</span> (Tap to skip)</div>
+
+  <script>
+    const COLORS = ['#ef4444', '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899'];
+    
+    function getDefaultProfileData() {
+      return {
+        color: '#3b82f6',
+        restTime: 90,
+        blocks: ["Foundation", "Ramping"],
+        activeBlock: "Foundation",
+        splits: {
+          "Foundation": { 
+            "Push": ["DB Bench Press", "Tricep Extension"], 
+            "Pull": ["Lat Pulldown", "Bicep Curls"],
+            "Legs": ["Goblet Squat", "Calf Raises"],
+            "Upper": ["Incline DB Press", "Cable Row"],
+            "Lower": ["Romanian Deadlift", "Leg Extension"]
+          },
+          "Ramping": { 
+            "Push": ["Barbell Bench Press", "Skullcrushers"], 
+            "Pull": ["Weighted Pull-ups", "Barbell Curls"],
+            "Legs": ["Barbell Squat", "Leg Press"],
+            "Upper": ["Barbell Row", "Military Press"],
+            "Lower": ["Deadlift", "Hamstring Curl"]
+          },
+          "No Block": { 
+            "Full Body": ["Squat", "Bench Press", "Barbell Row"] 
+          }
+        },
+        activeSplit: "Push",
+        history: []
+      };
+    }
+
+    let db = { profiles: {}, currentProfile: "" };
+
+    function initDB() {
+      try {
+        const stored = localStorage.getItem('user_db_v2');
+        if (stored) {
+          db = JSON.parse(stored);
+        } else {
+          db = {
+            profiles: { "Default": getDefaultProfileData() },
+            currentProfile: "Default"
+          };
+          saveDB();
+        }
+      } catch (e) {
+        alert("Warning: Local Storage is disabled or unavailable. Make sure Safari Private Browsing is turned OFF.");
+      }
+    }
+
+    function saveDB() {
+      try {
+        localStorage.setItem('user_db_v2', JSON.stringify(db));
+      } catch (e) {
+        console.error("Failed to save to localStorage", e);
+      }
+    }
+
+    // --- Profile Management ---
+    function showProfiles() {
+      document.getElementById('profile-screen').style.display = 'block';
+      document.getElementById('app-screen').style.display = 'none';
+      renderProfiles();
+    }
+
+    function renderProfiles() {
+      const list = document.getElementById('avatar-list');
+      list.innerHTML = '';
+      Object.keys(db.profiles).forEach(name => {
+        const user = db.profiles[name];
+        const card = document.createElement('div');
+        card.className = 'avatar-card';
+        card.onclick = () => selectProfile(name);
+        card.innerHTML = `
+          <div class="avatar-circle" style="background:${user.color}">${name.charAt(0).toUpperCase()}</div>
+          <div style="font-weight:bold; overflow:hidden; text-overflow:ellipsis;">${name}</div>
+        `;
+        list.appendChild(card);
+      });
+    }
+
+    function createProfile() {
+      const name = prompt("Enter profile name:");
+      if (name && name.trim() && !db.profiles[name.trim()]) {
+        const cleanName = name.trim();
+        db.profiles[cleanName] = getDefaultProfileData();
+        db.profiles[cleanName].color = COLORS[Math.floor(Math.random() * COLORS.length)];
+        saveDB();
+        renderProfiles();
+      }
+    }
+
+    function selectProfile(name) {
+      db.currentProfile = name;
+      saveDB();
+      document.getElementById('profile-screen').style.display = 'none';
+      document.getElementById('app-screen').style.display = 'block';
+      renderControls();
+      loadRoutine();
+    }
+
+    // --- Navigation & Controls ---
+    function switchTab(tab) {
+      document.getElementById('view-workout').style.display = tab === 'workout' ? 'block' : 'none';
+      document.getElementById('view-history').style.display = tab === 'history' ? 'block' : 'none';
+      document.getElementById('tab-workout').className = tab === 'workout' ? 'active' : '';
+      document.getElementById('tab-history').className = tab === 'history' ? 'active' : '';
+      if(tab === 'history') renderHistory();
+    }
+
+    function getUser() { 
+      if (!db.profiles[db.currentProfile]) {
+        db.currentProfile = Object.keys(db.profiles)[0] || "Default";
+      }
+      return db.profiles[db.currentProfile]; 
+    }
+
+    function setRestTimerSetting() {
+      const u = getUser();
+      const current = u.restTime || 90;
+      const val = prompt("Set default rest countdown (in seconds):", current);
+      if (val !== null && !isNaN(val)) {
+        u.restTime = parseInt(val, 10);
+        saveDB();
+        renderControls();
+      }
+    }
+
+    function renderControls() {
+      const u = getUser();
+
+      const restDisplay = document.getElementById('rest-setting-display');
+      if (restDisplay) restDisplay.textContent = `${u.restTime || 90}s`;
+      
+      const blockContainer = document.getElementById('block-chips');
+      blockContainer.innerHTML = '';
+      const allBlocks = [...(u.blocks || []), "No Block"];
+      allBlocks.forEach(b => {
+        const btn = document.createElement('button');
+        btn.className = `chip ${u.activeBlock === b ? 'active' : ''}`;
+        btn.textContent = b;
+        btn.onclick = () => { 
+          u.activeBlock = b; 
+          saveDB(); 
+          renderControls(); 
+          loadRoutine(); 
+        };
+        blockContainer.appendChild(btn);
+      });
+
+      if (!u.splits[u.activeBlock]) {
+        u.splits[u.activeBlock] = { "Push": ["Bench Press"] };
+      }
+
+      const splitContainer = document.getElementById('split-chips');
+      splitContainer.innerHTML = '';
+      const blockSplits = u.splits[u.activeBlock];
+      const splitNames = Object.keys(blockSplits);
+      
+      if (!splitNames.includes(u.activeSplit) && splitNames.length > 0) {
+        u.activeSplit = splitNames[0];
+      }
+
+      splitNames.forEach(s => {
+        const btn = document.createElement('button');
+        btn.className = `chip ${u.activeSplit === s ? 'active' : ''}`;
+        btn.textContent = s;
+        btn.onclick = () => { 
+          u.activeSplit = s; 
+          saveDB(); 
+          renderControls(); 
+          loadRoutine(); 
+        };
+        splitContainer.appendChild(btn);
+      });
+    }
+
+    function manageBlocks() {
+      const u = getUser();
+      const current = (u.blocks || []).join(', ');
+      const input = prompt("Edit your blocks (comma-separated):", current);
+      if (input !== null) {
+        const parsed = input.split(',').map(b => b.trim()).filter(b => b.length > 0);
+        u.blocks = parsed;
+        parsed.forEach(b => { if(!u.splits[b]) u.splits[b] = { "Full Body": ["Squat"] }; });
+        u.activeBlock = parsed[0] || "No Block";
+        saveDB();
+        renderControls();
+        loadRoutine();
+      }
+    }
+
+    function promptAddSplit() {
+      const u = getUser();
+      const name = prompt(`Add split name to ${u.activeBlock}:`);
+      if (name && name.trim()) {
+        const cleanName = name.trim();
+        if (!u.splits[u.activeBlock]) u.splits[u.activeBlock] = {};
+        u.splits[u.activeBlock][cleanName] = [];
+        u.activeSplit = cleanName;
+        saveDB();
+        renderControls();
+        loadRoutine();
+      }
+    }
+
+    // --- Workout Logic & History Auto-Fill ---
+    let workoutState = {};
+
+    function getLastSessionData(splitName, blockName) {
+      const u = getUser();
+      if (!u.history || u.history.length === 0) return null;
+      return u.history.find(h => h.split === splitName && h.block === blockName) || null;
+    }
+
+    function loadRoutine() {
+      const container = document.getElementById('active-workout');
+      container.innerHTML = '';
+      workoutState = {};
+
+      const u = getUser();
+      const blockData = u.splits[u.activeBlock] || {};
+      const exercises = blockData[u.activeSplit] || [];
+      const lastSession = getLastSessionData(u.activeSplit, u.activeBlock);
+
+      if (exercises.length === 0) {
+        container.innerHTML = '<div style="color:var(--muted); text-align:center; padding: 20px;">No exercises in this split yet. Tap "+ Add Exercise" below to start.</div>';
+        return;
+      }
+
+      exercises.forEach((ex, exIdx) => {
+        let prevSets = null;
+        if (lastSession && lastSession.exercises && lastSession.exercises[ex]) {
+          prevSets = lastSession.exercises[ex];
+        }
+
+        const hasValidHistory = prevSets && prevSets.length > 0 && prevSets.some(s => s.weight !== "" || s.reps !== "");
+
+        if (prevSets && prevSets.length > 0) {
+          workoutState[ex] = prevSets.map(s => ({
+            type: s.type || 'N',
+            weight: s.weight !== undefined ? s.weight : '',
+            reps: s.reps !== undefined ? s.reps : '',
+            done: false
+          }));
+        } else {
+          workoutState[ex] = [
+            { type: 'W', weight: '', reps: '', done: false },
+            { type: 'N', weight: '', reps: '', done: false },
+            { type: 'N', weight: '', reps: '', done: false }
+          ];
+        }
+
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="ex-header">
+            <h3>${ex}</h3>
+            <div>
+              <button class="icon-btn" onclick="renameExercise(${exIdx})">✏️</button>
+              <button class="icon-btn" style="color:var(--danger)" onclick="deleteExercise(${exIdx})">🗑️</button>
+            </div>
+          </div>
+          ${hasValidHistory ? '<div class="prev-info">📋 Pre-filled from your last session</div>' : ''}
+          <div class="set-row set-header">
+            <div>Type</div><div>LBS</div><div>Reps</div><div>Done</div><div></div>
+          </div>
+          <div id="sets-container-${exIdx}"></div>
+          <button class="btn btn-secondary" onclick="addSet(${exIdx}, '${ex}')">+ Add Set</button>
+        `;
+        container.appendChild(card);
+        renderSets(exIdx, ex);
+      });
+    }
+
+    function renderSets(exIdx, exName) {
+      const container = document.getElementById(`sets-container-${exIdx}`);
+      if (!container) return;
+      container.innerHTML = '';
+      workoutState[exName].forEach((set, sIdx) => {
+        const row = document.createElement('div');
+        row.className = 'set-row';
+        row.innerHTML = `
+          <select class="type-select" onchange="updateSet('${exName}', ${sIdx}, 'type', this.value)">
+            <option value="W" ${set.type === 'W' ? 'selected' : ''}>W</option>
+            <option value="N" ${set.type === 'N' ? 'selected' : ''}>N</option>
+            <option value="D" ${set.type === 'D' ? 'selected' : ''}>D</option>
+            <option value="F" ${set.type === 'F' ? 'selected' : ''}>F</option>
+          </select>
+          <input type="number" placeholder="LBS" value="${set.weight}" oninput="updateSet('${exName}', ${sIdx}, 'weight', this.value)">
+          <input type="number" placeholder="Reps" value="${set.reps}" oninput="updateSet('${exName}', ${sIdx}, 'reps', this.value)">
+          <button class="btn btn-check ${set.done ? 'completed' : ''}" onclick="toggleSet('${exName}', ${sIdx}, ${exIdx})">✓</button>
+          <button style="background:none; border:none; color:var(--danger); font-size:16px;" onclick="removeSet('${exName}', ${sIdx}, ${exIdx})">✕</button>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function updateSet(exName, sIdx, key, val) { workoutState[exName][sIdx][key] = val; }
+    function addSet(exIdx, exName) { workoutState[exName].push({ type: 'N', weight: '', reps: '', done: false }); renderSets(exIdx, exName); }
+    function removeSet(exName, sIdx, exIdx) { workoutState[exName].splice(sIdx, 1); renderSets(exIdx, exName); }
+    
+    function toggleSet(exName, sIdx, exIdx) {
+      const current = workoutState[exName][sIdx].done;
+      workoutState[exName][sIdx].done = !current;
+      renderSets(exIdx, exName);
+      if (!current) {
+        const u = getUser();
+        const duration = u.restTime !== undefined ? u.restTime : 90;
+        if (duration > 0) startTimer(duration);
+      }
+    }
+
+    function promptAddExercise() {
+      const u = getUser();
+      const name = prompt("Enter exercise name:");
+      if (name && name.trim()) {
+        if (!u.splits[u.activeBlock]) u.splits[u.activeBlock] = {};
+        if (!u.splits[u.activeBlock][u.activeSplit]) u.splits[u.activeBlock][u.activeSplit] = [];
+        u.splits[u.activeBlock][u.activeSplit].push(name.trim());
+        saveDB();
+        loadRoutine();
+      }
+    }
+
+    function renameExercise(exIdx) {
+      const u = getUser();
+      const oldName = u.splits[u.activeBlock][u.activeSplit][exIdx];
+      const newName = prompt("Rename exercise:", oldName);
+      if (newName && newName.trim()) {
+        u.splits[u.activeBlock][u.activeSplit][exIdx] = newName.trim();
+        saveDB();
+        loadRoutine();
+      }
+    }
+
+    function deleteExercise(exIdx) {
+      const u = getUser();
+      u.splits[u.activeBlock][u.activeSplit].splice(exIdx, 1);
+      saveDB();
+      loadRoutine();
+    }
+
+    // --- Timer ---
+    let timerInterval = null;
+    function startTimer(seconds) {
+      clearInterval(timerInterval);
+      const display = document.getElementById('timer-time');
+      const timerDiv = document.getElementById('timer');
+      timerDiv.style.display = 'block';
+      let timer = seconds;
+      
+      const updateDisplay = () => {
+        let mins = Math.floor(timer / 60);
+        let secs = timer % 60;
+        display.textContent = `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+      };
+      
+      updateDisplay();
+      timerInterval = setInterval(() => {
+        if (--timer < 0) {
+          stopTimer();
+        } else {
+          updateDisplay();
+        }
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+      document.getElementById('timer').style.display = 'none';
+    }
+
+    // --- Workout & History Saving ---
+    function finishWorkout() {
+      const u = getUser();
+      const entry = {
+        date: new Date().toLocaleDateString(),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        block: u.activeBlock,
+        split: u.activeSplit,
+        exercises: JSON.parse(JSON.stringify(workoutState))
+      };
+      
+      if (!u.history) u.history = [];
+      u.history.unshift(entry);
+      saveDB();
+      alert(`Workout saved for ${db.currentProfile}!`);
+      loadRoutine();
+    }
+
+    function renderHistory() {
+      const container = document.getElementById('history-container');
+      container.innerHTML = '';
+      const u = getUser();
+      if (!u.history || u.history.length === 0) {
+        container.innerHTML = '<p style="color:var(--muted)">No logged workouts yet.</p>';
+        return;
+      }
+
+      u.history.forEach(session => {
+        const card = document.createElement('div');
+        card.className = 'history-card';
+        let exHtml = '';
+        
+        if (session.exercises) {
+          Object.keys(session.exercises).forEach(ex => {
+            const completedSets = session.exercises[ex].filter(s => s.done || s.weight !== '');
+            if (completedSets.length > 0) {
+              exHtml += `<div style="margin-top:5px;"><strong>${ex}</strong>: `;
+              exHtml += completedSets.map(s => `[${s.type}] ${s.weight || 0}lbs × ${s.reps || 0}`).join(', ');
+              exHtml += `</div>`;
+            }
+          });
+        }
+
+        card.innerHTML = `
+          <div style="font-weight:bold; font-size:16px;">${session.split} (${session.block})</div>
+          <div class="history-meta">${session.date} at ${session.time}</div>
+          ${exHtml}
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // Startup Execution
+    initDB();
+    showProfiles();
+  </script>
+</body>
+</html>
