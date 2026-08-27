@@ -112,29 +112,30 @@
     const COLORS = ['#ef4444', '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899'];
     const TARGET_ORDER = ["Upper", "Lower", "Pull", "Push", "Legs"];
 
-    // Web Audio Synthesizer for Timer Beep
+    // High-volume, long-duration Synthesizer Beep
     function playBeep() {
       try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
-        function makeNote(freq, start, duration) {
+        function makeLongBeep(freq, start, duration) {
           const osc = audioCtx.createOscillator();
           const gain = audioCtx.createGain();
-          osc.type = 'sine';
+          osc.type = 'square'; // 'square' waveform is noticeably sharper and louder than 'sine'
           osc.frequency.value = freq;
           osc.connect(gain);
           gain.connect(audioCtx.destination);
           
-          gain.gain.setValueAtTime(0.3, audioCtx.currentTime + start);
-          gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + start + duration);
+          gain.gain.setValueAtTime(1.0, audioCtx.currentTime + start);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + start + duration);
           
           osc.start(audioCtx.currentTime + start);
           osc.stop(audioCtx.currentTime + start + duration);
         }
         
-        // Play two short consecutive beeps
-        makeNote(800, 0, 0.15);
-        makeNote(800, 0.2, 0.25);
+        // 3 loud, 0.75-second long beeps spaced out
+        makeLongBeep(950, 0.0, 0.75);
+        makeLongBeep(950, 0.9, 0.75);
+        makeLongBeep(950, 1.8, 0.75);
       } catch (e) {
         console.error("Audio Context playback failed:", e);
       }
