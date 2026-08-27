@@ -112,27 +112,47 @@
     const COLORS = ['#ef4444', '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899'];
     const TARGET_ORDER = ["Upper", "Lower", "Pull", "Push", "Legs"];
 
-    // High-volume, long-duration Synthesizer Beep
+    // Global Audio Context initialized for legacy iOS 10 Safari compatibility
+    let globalAudioCtx = null;
+
+    function initAudioContext() {
+      if (!globalAudioCtx) {
+        const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtxClass) {
+          globalAudioCtx = new AudioCtxClass();
+        }
+      }
+      if (globalAudioCtx && globalAudioCtx.state === 'suspended') {
+        globalAudioCtx.resume();
+      }
+    }
+
+    // Unlock Audio Context on first user interaction anywhere on iOS
+    document.addEventListener('touchstart', initAudioContext, { once: false });
+    document.addEventListener('click', initAudioContext, { once: false });
+
     function playBeep() {
       try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        initAudioContext();
+        if (!globalAudioCtx) return;
         
         function makeLongBeep(freq, start, duration) {
-          const osc = audioCtx.createOscillator();
-          const gain = audioCtx.createGain();
-          osc.type = 'square'; // 'square' waveform is noticeably sharper and louder than 'sine'
+          const osc = globalAudioCtx.createOscillator();
+          const gain = globalAudioCtx.createGain();
+          osc.type = 'square';
           osc.frequency.value = freq;
           osc.connect(gain);
-          gain.connect(audioCtx.destination);
+          gain.connect(globalAudioCtx.destination);
           
-          gain.gain.setValueAtTime(1.0, audioCtx.currentTime + start);
-          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + start + duration);
+          const now = globalAudioCtx.currentTime;
+          gain.gain.setValueAtTime(1.0, now + start);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + start + duration);
           
-          osc.start(audioCtx.currentTime + start);
-          osc.stop(audioCtx.currentTime + start + duration);
+          osc.start(now + start);
+          osc.stop(now + start + duration);
         }
         
-        // 3 loud, 0.75-second long beeps spaced out
+        // 3 loud 0.75-second beeps tailored for iOS WebKit playback
         makeLongBeep(950, 0.0, 0.75);
         makeLongBeep(950, 0.9, 0.75);
         makeLongBeep(950, 1.8, 0.75);
@@ -471,6 +491,7 @@
     function removeSet(exName, sIdx, exIdx) { workoutState[exName].splice(sIdx, 1); renderSets(exIdx, exName); }
     
     function toggleSet(exName, sIdx, exIdx) {
+      initAudioContext();
       const current = workoutState[exName][sIdx].done;
       workoutState[exName][sIdx].done = !current;
       renderSets(exIdx, exName);
