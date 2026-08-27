@@ -108,6 +108,23 @@
 
   <script>
     const COLORS = ['#ef4444', '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899'];
+    const TARGET_ORDER = ["Upper", "Lower", "Pull", "Push", "Legs"];
+
+    function reorderSplits(splitsObject) {
+      if (!splitsObject) return {};
+      const newSplits = {};
+      TARGET_ORDER.forEach(key => {
+        if (splitsObject[key] !== undefined) {
+          newSplits[key] = splitsObject[key];
+        }
+      });
+      Object.keys(splitsObject).forEach(key => {
+        if (!TARGET_ORDER.includes(key)) {
+          newSplits[key] = splitsObject[key];
+        }
+      });
+      return newSplits;
+    }
     
     function getDefaultProfileData() {
       return {
@@ -146,6 +163,15 @@
         const stored = localStorage.getItem('user_db_v2');
         if (stored) {
           db = JSON.parse(stored);
+          Object.keys(db.profiles).forEach(pName => {
+            const prof = db.profiles[pName];
+            if (prof && prof.splits) {
+              Object.keys(prof.splits).forEach(bName => {
+                prof.splits[bName] = reorderSplits(prof.splits[bName]);
+              });
+            }
+          });
+          saveDB();
         } else {
           db = {
             profiles: { "Default": getDefaultProfileData() },
@@ -264,6 +290,9 @@
 
       const splitContainer = document.getElementById('split-chips');
       splitContainer.innerHTML = '';
+      
+      u.splits[u.activeBlock] = reorderSplits(u.splits[u.activeBlock]);
+      
       const blockSplits = u.splits[u.activeBlock];
       const splitNames = Object.keys(blockSplits);
       
